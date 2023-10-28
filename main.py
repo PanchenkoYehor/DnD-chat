@@ -1,6 +1,8 @@
 import openai
 import streamlit as st
 
+from main_logic import get_response_by_messages, get_game_start_messages
+
 st.title("ChatGPT-like clone")
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -15,7 +17,11 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Let's start your DnD journey. Let me now once you're ready to play"):
+if st.button('Start game'):
+    init_message = get_game_start_messages()
+    st.session_state.messages.append({"role": "assistant", "content": init_message})
+
+if prompt := st.chat_input("Enter your next move"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
@@ -24,12 +30,14 @@ if prompt := st.chat_input("Let's start your DnD journey. Let me now once you're
         message_placeholder = st.empty()
         full_response = ""
         for response in openai.ChatCompletion.create(
-            model=st.session_state["openai_model"],
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
+                model=st.session_state["openai_model"],
+                messages=get_response_by_messages(st.session_state.messages,
+                                                  prompt),
+                # [
+                #     {"role": m["role"], "content": m["content"]}
+                #     for m in st.session_state.messages
+                # ],
+                stream=True,
         ):
             full_response += response.choices[0].delta.get("content", "")
             message_placeholder.markdown(full_response + "▌")
